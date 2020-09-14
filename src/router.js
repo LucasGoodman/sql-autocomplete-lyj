@@ -11,8 +11,13 @@ export default new Router({
             path: '/',
             name: 'defaultLayout',
             component: () => import('./components/layout/Default.vue'),
-            redirect: { name: 'HelloWorld' },
+            redirect: { name: 'AceEditor' },
             children: [
+                {
+                    path: '/ace-editor',
+                    name: 'AceEditor',
+                    component: () => import('./views/AceEditor.vue')
+                },
                 {
                     path: '/hello-world',
                     name: 'HelloWorld',
