@@ -1,0 +1,68 @@
+{
+    "name": "ace-editor-test",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "serve": "vue-cli-service serve",
+        "build": "vue-cli-service build --mode preview",
+        "build:prod": "vue-cli-service build --mode production",
+        "build:privatization": "vue-cli-service build --mode privatization",
+        "report": "vue-cli-service build --report",
+        "sonar": "node ./sonar.js -s http://10.88.1.22:9090/sonar -t d470f436fc46181d16a8f5f414f0da57f03e9527",
+        "lint": "eslint --ext .js,.vue src",
+        "lint:fix": "eslint --ext .js,.vue src --fix",
+        "stylelint": "stylelint src/**/*.{html,vue,css,less}",
+        "stylelint:fix": "stylelint src/**/*.{html,vue,css,less} --fix"
+    },
+    "dependencies": {
+        "@babel/core": "^7.9.0",
+        "@vue/cli-plugin-babel": "^4.3.1",
+        "@vue/cli-plugin-eslint": "^4.3.1",
+        "@vue/cli-plugin-router": "^4.3.1",
+        "@vue/cli-plugin-vuex": "^4.3.1",
+        "@vue/cli-service": "^4.3.1",
+        "@segma/api-tools": "^0.1.5",
+        "@segma/segma-directives": "^1.3.2",
+        "@segma/segma-ui": "^2.3.25",
+        "axios": "^0.19.2",
+        "babel-plugin-component": "^1.1.1",
+        "core-js": "^3.6.5",
+        "element-ui": "^2.13.1",
+        "less": "^3.0.4",
+        "less-loader": "^5.0.0",
+        "lodash": "^4.17.15",
+        "style-resources-loader": "^1.3.3",
+        "vue": "^2.6.11",
+        "vue-router": "^3.1.6",
+        "vue-template-compiler": "^2.6.11",
+        "vuex": "^3.4.0"
+    },
+    "devDependencies": {
+        "babel-eslint": "^10.1.0",
+        "commander": "^4.1.1",
+        "eslint": "^6.7.2",
+        "eslint-config-alloy": "^3.8.0",
+        "eslint-plugin-vue": "^6.2.2",
+        "husky": "^4.2.5",
+        "lint-staged": "^10.3.0",
+        "sonarqube-scanner": "^2.5.0",
+        "stylelint": "^13.7.0",
+        "stylelint-config-standard": "^20.0.0",
+        "stylelint-order": "^4.1.0"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged"
+        }
+    },
+    "lint-staged": {
+        "src/**/*.{js,vue}": [
+            "eslint --fix",
+            "git add"
+        ],
+        "src/**/*.{html,css,less,vue}": [
+            "stylelint --fix",
+            "git add"
+        ]
+    }
+}
