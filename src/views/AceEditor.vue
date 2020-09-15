@@ -33,11 +33,12 @@ export default {
     // watch: {},
     mounted() {
         window.editor = ace.edit("editor");
-        // editor.setTheme("ace/theme/monokai");
         editor.session.setMode("ace/mode/sql");
         editor.setOptions({
-            // autoScrollEditorIntoView: true,
-            copyWithEmptySelection: true
+            // enableBasicAutocompletion: true,
+            enableSnippets: true,
+            copyWithEmptySelection: true,
+            enableLiveAutocompletion: true
         });
     },
     // created() {},
