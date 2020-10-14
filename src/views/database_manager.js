@@ -5,9 +5,6 @@
 import db_api from '../api_model/modules/database';
 import { DATA_TYPES, COLUMN_TYPES } from "./utils";
 
-const getChainString = (chain) => {
-    return chain.join('.');
-};
 const databaseTree = {};
 
 class DatabaseManager {
@@ -74,6 +71,7 @@ class DatabaseManager {
     async getColumns(identifierChain) {
         let self = this;
         let list = [];
+        // todo：这里可能只有一个表标识，需要去找到对应的表
         let dbName = identifierChain[0].name;
         let tbName = identifierChain[1].name;
         if (!self.databaseTree[dbName] || !self.databaseTree[dbName]['tables'][tbName] || !self.databaseTree[dbName]['tables'][tbName]['columns']) {

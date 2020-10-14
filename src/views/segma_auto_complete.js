@@ -7,6 +7,7 @@ import * as ko from "knockout";
 
 import { CATEGORIES } from './utils';
 import DatabaseManager from "./database_manager";
+import { UDF_CATEGORIES } from './udfReference';
 
 const BaseSuggestion = {
     value: '', // 插入值
@@ -36,48 +37,48 @@ class SegmaAutoComplete {
      * 筛选建议
      * */
     filterSuggestions(filterString) {
-        console.log('filterSuggestions', filterString);
-        console.log('Original suggestion:', this.suggestions);
+        // console.log('filterSuggestions', filterString);
+        // console.log('Original suggestion:', this.suggestions);
         if (!filterString) {
             return [];
         }
-        let result = this.innerFilterSuggestions(filterString);
-        console.log('Filter suggestion:', result);
-        console.log('this.suggestions', this.suggestions);
-        this.sortSuggestions(result, filterString);
+        let reg = new RegExp(filterString, 'i');
+        let result = this.innerFilterSuggestions(filterString, reg);
+        // console.log('Filter suggestion:', result);
+        // console.log('this.suggestions', this.suggestions);
+        this.sortSuggestions(result, reg);
+        console.log('Sort suggestion:', this.suggestions);
         return result;
     }
 
-    innerFilterSuggestions(filterString) {
+    innerFilterSuggestions(filterString, reg) {
         // 点号特殊处理，不需要筛选
         if (filterString === '.') {
             return this.suggestions;
         }
         return this.suggestions.filter(suggestion => {
-            return suggestion.value.indexOf(filterString) !== -1;
+            return reg.test(suggestion.value);
         });
     }
 
     /**
      * 根据权重和相关性筛选建议
      * */
-    sortSuggestions(suggestions, filterString) {
-        let reg = new RegExp(filterString, 'ig');
+    sortSuggestions(suggestions, reg) {
         suggestions.sort((a, b) => {
             if (b.category.weight === a.category.weight) {
-                let matchA = this.getMatchIndex(reg, a);
-                let matchB = this.getMatchIndex(reg, b);
+                let matchA = this.getMatchIndex(reg, a.value);
+                let matchB = this.getMatchIndex(reg, b.value);
                 return matchA - matchB;
             } else {
                 return b.category.weight - a.category.weight;
             }
         });
-        console.log('Sort suggestion:', suggestions);
     }
 
     getMatchIndex(reg, string) {
         let result = reg.exec(string);
-        return result ? result.index : -1;
+        return result ? result.index : Infinity;
     }
 
     async update(parseResult) {
@@ -92,7 +93,7 @@ class SegmaAutoComplete {
             suggestKeywords
         } = parseResult;
         if (suggestDatabases) {
-            await this.databaseHandler();
+            await this.databaseHandler(suggestDatabases);
         }
         if (suggestTables) {
             await this.tableHandler(suggestTables);
@@ -104,15 +105,27 @@ class SegmaAutoComplete {
         if (suggestKeywords) {
             this.keywordsHandler(suggestKeywords);
         }
+        if (suggestAggregateFunctions) {
+            this.aggregateFunctionsHandler(suggestAggregateFunctions);
+        }
         return [];
     }
 
-    async databaseHandler() {
+    addPrefixAndSuffix(name, appendDot, prependFrom) {
+        // todo: 这里加入的from是否区分大小写
+        return `${prependFrom ? 'FROM ' : ''}${name}${appendDot ? '.' : ''}`;
+    }
+
+    async databaseHandler(suggestDatabases) {
+        let self = this;
+        let { appendDot, prependFrom } = suggestDatabases;
         let database = await this.databaseManager.getDatabases();
-        let suggestions = database.map(db => {
+
+        let suggestions = database.map(dbName => {
+            dbName = self.addPrefixAndSuffix(dbName, appendDot, prependFrom);
             return {
-                value: db,
-                meta: db,
+                value: dbName,
+                meta: dbName,
                 category: CATEGORIES.DATABASE,
                 weightAdjust: 0,
                 popular: false,
@@ -123,10 +136,12 @@ class SegmaAutoComplete {
     }
 
     async tableHandler(suggestTables) {
-        let { identifierChain } = suggestTables;
+        let self = this;
+        let { identifierChain, prependFrom } = suggestTables;
         let tables = await this.databaseManager.getTables(identifierChain);
         let suggestions = tables.map(table => {
             let { name, chain } = table;
+            name = self.addPrefixAndSuffix(name, false, prependFrom);
             return {
                 value: name,
                 meta: name,
@@ -173,6 +188,33 @@ class SegmaAutoComplete {
                 details: null
             };
         }));
+    }
+
+    aggregateFunctionsHandler(suggestAggregateFunctions) {
+        let suggestions = [];
+        UDF_CATEGORIES.forEach(categorie => {
+            for (let functionsKey in categorie.functions) {
+                if (categorie.functions.hasOwnProperty(functionsKey)) {
+                    let fun = categorie.functions[functionsKey];
+                    let { description, draggable, name, signature } = fun;
+                    suggestions = [
+                        ...suggestions, {
+                            value: name + '()',
+                            meta: name + '()',
+                            category: CATEGORIES.UDF,
+                            weightAdjust: 0,
+                            popular: false,
+                            details: {
+                                draggable,
+                                signature,
+                                description
+                            }
+                        }
+                    ];
+                }
+            }
+        });
+        this.addSuggestions(suggestions);
     }
 
 }

@@ -186,6 +186,7 @@ export default {
                         }, 1);
                     }
 
+                    // todo: 脚本初始化之后需要执行一次分析，拿到初始的数据库列表
                     this.analysis();
                 }
             });
@@ -196,7 +197,6 @@ export default {
             this.editor.completer = new SegmaAutoComplete({
                 mark
             });
-
             return;
             /*// 创建参数
             const autocomplete = {
