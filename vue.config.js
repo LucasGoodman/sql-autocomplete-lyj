@@ -26,7 +26,15 @@ module.exports = {
         config.resolve.alias
             .set('@', resolve('src'))
             .set('@assets', resolve('src/assets'))
-            .set('@components', resolve('src/components'));
+            .set('@components', resolve('src/components'))
+            .set('sql', resolve('src/sql'))
+            .set('api', resolve('src/api'))
+            .set('utils', resolve('src/utils'))
+            .set('catalog', resolve('src/catalog'))
+            .set('apps', resolve('src/apps'))
+            .set('ko', resolve('src/ko'))
+            .set('doc', resolve('src/doc'))
+            .set('parse', resolve('src/parse'));
 
         // 自动注入less变量、函数等
         const types = ['vue-modules', 'vue', 'normal-modules', 'normal'];
@@ -38,7 +46,7 @@ module.exports = {
         open: true,
         proxy: {
             '/api-local': {
-                target: 'http://demo.com',
+                target: 'http://10.76.37.4',
                 progress: false,
                 pathRewrite: {
                     '^/api-local': '/'

@@ -33,7 +33,7 @@ module.exports = {
         /**
          * 强制使用 Unix 换行符
          * */
-        'linebreak-style': ['error', 'unix'],
+        // 'linebreak-style': ['error', 'unix'],
         /**
          * vue模板属性换行配置
          * 文档：https://eslint.vuejs.org/rules/max-attributes-per-line.html

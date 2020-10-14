@@ -12,6 +12,14 @@ module.exports = {
         ]
     ],
     "ignore": [
-        "public"
+        "public",
+        "src/sql",
+        "src/api",
+        "src/parse",
+        "src/doc",
+        "src/ko",
+        "src/catalog",
+        "src/apps",
+        "src/utils"
     ]
 };
