@@ -7,7 +7,7 @@ import * as ko from "knockout";
 
 import { CATEGORIES } from './utils';
 import DatabaseManager from "./database_manager";
-import { UDF_CATEGORIES } from './udfReference';
+import { UDF_CATEGORIES } from './udf_reference';
 
 const BaseSuggestion = {
     value: '', // 插入值
@@ -37,17 +37,12 @@ class SegmaAutoComplete {
      * 筛选建议
      * */
     filterSuggestions(filterString) {
-        // console.log('filterSuggestions', filterString);
-        // console.log('Original suggestion:', this.suggestions);
         if (!filterString) {
             return [];
         }
         let reg = new RegExp(filterString, 'i');
         let result = this.innerFilterSuggestions(filterString, reg);
-        // console.log('Filter suggestion:', result);
-        // console.log('this.suggestions', this.suggestions);
         this.sortSuggestions(result, reg);
-        console.log('Sort suggestion:', this.suggestions);
         return result;
     }
 
@@ -125,7 +120,7 @@ class SegmaAutoComplete {
             dbName = self.addPrefixAndSuffix(dbName, appendDot, prependFrom);
             return {
                 value: dbName,
-                meta: dbName,
+                meta: CATEGORIES.DATABASE.label,
                 category: CATEGORIES.DATABASE,
                 weightAdjust: 0,
                 popular: false,
@@ -144,7 +139,7 @@ class SegmaAutoComplete {
             name = self.addPrefixAndSuffix(name, false, prependFrom);
             return {
                 value: name,
-                meta: name,
+                meta: CATEGORIES.TABLE.label,
                 category: CATEGORIES.TABLE,
                 weightAdjust: 0,
                 popular: false,
@@ -166,7 +161,7 @@ class SegmaAutoComplete {
             let { name, chain } = column;
             return {
                 value: name,
-                meta: name,
+                meta: CATEGORIES.COLUMN.label,
                 category: CATEGORIES.COLUMN,
                 weightAdjust: 0,
                 popular: false,
@@ -181,7 +176,7 @@ class SegmaAutoComplete {
         this.addSuggestions(keywords.map(keyword => {
             return {
                 value: keyword.value,
-                meta: keyword.value,
+                meta: CATEGORIES.KEYWORD.label,
                 category: CATEGORIES.KEYWORD,
                 weightAdjust: 0,
                 popular: false,
@@ -190,17 +185,23 @@ class SegmaAutoComplete {
         }));
     }
 
-    aggregateFunctionsHandler(suggestAggregateFunctions) {
+    /**
+     * 计算并缓存 用户定义函数
+     * */
+    getAndCacheUDFCategory() {
+        if (this.categories) {
+            return this.categories;
+        }
         let suggestions = [];
-        UDF_CATEGORIES.forEach(categorie => {
-            for (let functionsKey in categorie.functions) {
-                if (categorie.functions.hasOwnProperty(functionsKey)) {
-                    let fun = categorie.functions[functionsKey];
-                    let { description, draggable, name, signature } = fun;
+        UDF_CATEGORIES.forEach(category => {
+            for (let functionsKey in category.functions) {
+                if (category.functions.hasOwnProperty(functionsKey)) {
+                    let fun = category.functions[functionsKey];
+                    let { description, draggable, name, signature, returnTypes } = fun;
                     suggestions = [
                         ...suggestions, {
                             value: name + '()',
-                            meta: name + '()',
+                            meta: returnTypes[0],
                             category: CATEGORIES.UDF,
                             weightAdjust: 0,
                             popular: false,
@@ -214,9 +215,15 @@ class SegmaAutoComplete {
                 }
             }
         });
-        this.addSuggestions(suggestions);
+        this.categories = suggestions;
+        return suggestions;
     }
 
+    aggregateFunctionsHandler(suggestAggregateFunctions) {
+        console.log('suggestAggregateFunctions', suggestAggregateFunctions);
+        let suggestions = this.getAndCacheUDFCategory();
+        this.addSuggestions(suggestions);
+    }
 }
 
 export default SegmaAutoComplete;

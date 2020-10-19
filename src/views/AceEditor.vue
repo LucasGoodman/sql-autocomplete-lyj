@@ -42,23 +42,33 @@
                        @click="analysis">
                 分析
             </el-button>
-            <div ref="placeHolder"
+            <el-button size="small"
+                       @click="autoCompleteVisible =  !autoCompleteVisible">
+                提示开关
+            </el-button>
+            <!--<div ref="placeHolder"
                  class="ace_invisible ace_emptyMessage">
                 占位符
-            </div>
-
+            </div>-->
         </div>
         <div class="content">
-            <div id="editor">select * from lyj_test_hive</div>
+            <div class="editor-wrapper">
+                <div id="editor">select * from lyj_test_hive</div>
+                <ace-suggestions :suggestions="suggestions"
+                                 :filter="filter"
+                                 :position="autoCompletePosition"
+                                 :visible.sync="autoCompleteVisible"
+                                 @autocomplete="handleAutocomplete"
+                                 @focus="editorFocus"></ace-suggestions>
+            </div>
             <div class="parse-result-list">
                 <h1>
                     parse-result-list
                 </h1>
-                <template v-for="(tip,index) in tipDataList">
+                <template v-for="(tip,index) in suggestions">
                     <p :key="index"
                        class="tip"
                        @click="parseDetails = tip">
-                        {{tip.value}}
                     </p>
                 </template>
             </div>
@@ -82,6 +92,7 @@ import AutocompleteResults from 'sql/autocompleteResults';
 import localForage from 'localforage';
 import './ace.extended';
 import SegmaAutoComplete from './segma_auto_complete';
+import AceSuggestions from "./AceSuggestions";
 
 const AUTOCOMPLETE_MODULES = {
     calcite: () => import(/* webpackChunkName: "calcite-parser" */ 'parse/sql/calcite/calciteAutocompleteParser'),
@@ -107,10 +118,13 @@ const AVAILABLE_AUTOCOMPLETERS = {
 // const snippetManager = ace.require("ace/snippets").snippetManager;
 // import $ from 'jquery';
 import LOTS_OF_PARSE_RESULTS from 'sql/test/lotsOfParseResults';
+import _debounce from 'lodash/debounce';
 
 export default {
     name: 'AceEditor',
-    // components: {},
+    components: {
+        AceSuggestions
+    },
     // directives: {},
     // filters: {},
     // model: {},
@@ -118,13 +132,33 @@ export default {
     data() {
         return {
             editor: null,
-            tipDataList: [],
+            suggestions: [],
             parseDetails: null,
-            onSqlAnalysing: false
+            onSqlAnalysing: false,
+            filter: '', // 需要匹配的关键词
+            autoCompleteVisible: true,
+            autoCompletePosition: {
+                pageX: 1200,
+                pageY: 0
+            },
+            timestamp: 0
         };
     },
-    // computed: {},
-    // watch: {},
+    computed: {
+        _analysis() {
+            return _debounce(this.analysis, 200);
+        }
+    },
+    watch: {
+        suggestions(val) {
+            if (val.length === 0) {
+                console.log('关闭提示');
+            }
+            // 更新提示框位置
+            this.autoCompletePositionUpdate();
+            this.autoCompleteVisible = true;
+        }
+    },
     mounted() {
         this.editorInit();
     },
@@ -162,6 +196,13 @@ export default {
                     console.log('editor.commands.addCommand :', e);
                 }
             });
+            this.editor.commands.addCommand({
+                name: 'down',
+                bindKey: { win: bindPrefix + 'Down', mac: bindPrefix + 'Down|Command-Down' },
+                exec: (e) => {
+                    console.log('监听到键盘事件 “下” ：', e);
+                }
+            });
             // 自动补全
             /*const AceAutocomplete = ace.require('ace/autocomplete').Autocomplete;
             editor.completer = new AceAutocomplete();
@@ -171,6 +212,7 @@ export default {
             // 执行后监听
             this.editor.commands.on('afterExec', e => {
                 // console.log('执行后：', e);
+                // 光标移入括号内
                 if (e.command.name === 'insertstring') {
                     let triggerAutocomplete = false;
                     if (/\S+\(\)$/.test(e.args)) {
@@ -185,10 +227,16 @@ export default {
                             editor.execCommand('startAutocomplete');
                         }, 1);
                     }
-
-                    // todo: 脚本初始化之后需要执行一次分析，拿到初始的数据库列表
-                    this.analysis();
                 }
+            });
+            // todo:执行时机有待商榷
+            this.editor.on('change', e => {
+                console.log('Editor Change', e);
+                console.log(' this.editor', this.editor);
+                // todo: 脚本初始化之后需要执行一次分析，拿到初始的数据库列表
+                this.$nextTick(() => {
+                    this._analysis();
+                });
             });
 
             // 用来区分数据库类型
@@ -197,7 +245,7 @@ export default {
             this.editor.completer = new SegmaAutoComplete({
                 mark
             });
-            return;
+
             /*// 创建参数
             const autocomplete = {
                 support: '',
@@ -341,30 +389,29 @@ export default {
             );
             return parseResult;
         },
-        /**
-         * 获取光标前的单词
-         * */
-        getWordBeforeCursor() {
-            let cursorPosition = this.editor.getCursorPosition();
-            let token = this.editor.session.getTokenAt(cursorPosition.row, cursorPosition.column);
-            return token ? token.value : '';
-        },
         async analysis() {
             if (this.onSqlAnalysing) {
                 return;
             }
+            let timestamp = new Date().getTime();
+            this.timestamp = timestamp;
             this.onSqlAnalysing = true;
             let parseResult = await this.sqlAnalysis();
             console.log('parseResult', parseResult);
             await this.editor.completer.update(parseResult);
-            let filter = this.getWordBeforeCursor();
-            let suggestions = this.editor.completer.filterSuggestions(filter);
-            this.tipDataList = suggestions;
+            this.filter = this.getWordBeforeCursor();
+            console.log('this.filter', this.filter);
+            let suggestions = this.editor.completer.filterSuggestions(this.filter);
+            // 只需要最新的提示
+            if (this.timestamp !== timestamp) {
+                return;
+            }
+            console.log('Final suggestions -- ', suggestions);
+            this.suggestions = suggestions;
             this.onSqlAnalysing = false;
-            return;
 
 
-            const subject = new AutocompleteResults({
+            /*const subject = new AutocompleteResults({
                 fixedPrefix: '',
                 fixedPostfix: '',
                 support: '',
@@ -411,14 +458,43 @@ export default {
                 // console.log('subject', subject);
                 // console.log('parseResult', parseResult);
                 console.log('subject.filtered', subject.filtered());
-                this.tipDataList = subject.filtered();
+                this.suggestions = subject.filtered();
             } catch (e) {
                 console.log('e', e);
                 console.error(e);
             }
             if (subject.loading()) {
-            }
+            }*/
         },
+        /**
+         * 获取光标前的单词
+         * */
+        getWordBeforeCursor() {
+            let cursorPosition = this.editor.getCursorPosition();
+            let token = this.editor.session.getTokenAt(cursorPosition.row, cursorPosition.column);
+            return token ? token.value : '';
+        },
+        autoCompletePositionUpdate() {
+            let { pageX, pageY } = this.editor.getCursorScreenPosition();
+            this.autoCompletePosition = {
+                pageX,
+                pageY: pageY + 20
+            };
+        },
+        handleAutocomplete(valueToInsert) {
+            // 先移除已匹配部分
+            let ranges = this.editor.selection.getAllRanges();
+            ranges.forEach(range => {
+                range.start.column -= this.filter.length;
+                this.editor.session.remove(range);
+            });
+            this.editor.execCommand('insertstring', valueToInsert);
+            this.editorFocus();
+        },
+        editorFocus() {
+            this.editor.focus();
+        },
+
         insert() {
             let scroller = window.editor.renderer.scroller;
             scroller.appendChild(this.$refs.placeHolder);
@@ -437,10 +513,18 @@ export default {
             console.log('data', data);
         },
         beforeCursor() {
-            let cursorPosition = this.editor.getCursorPosition();
+            // 找词
+            /*let cursorPosition = this.editor.getCursorPosition();
             let token = this.editor.session.getTokenAt(cursorPosition.row, cursorPosition.column);
             console.log('cursorPosition', cursorPosition);
-            console.log('token', token);
+            console.log('token', token);*/
+
+            // 删除范围
+            this.editor.removeTextBeforeCursor(2);
+
+            // 取得光标位置
+            let p = this.editor.getCursorScreenPosition();
+            console.log('p', p);
         }
     }
 };
@@ -465,6 +549,10 @@ export default {
         display: inline-block;
         flex-basis: 33%;
     }
+}
+
+.editor-wrapper {
+    position: relative;
 }
 
 .parse-result-list {

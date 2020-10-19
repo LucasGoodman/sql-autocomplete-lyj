@@ -1,5 +1,5 @@
 import d3v3 from "d3v3";
-import I18n from 'utils/i18n';
+import I18n from './i18n';
 
 /**
  * Created by Lucas on 2020/10/13.
