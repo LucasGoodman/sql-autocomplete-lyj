@@ -34,8 +34,8 @@
                 localforage 读数据
             </el-button>
             <el-button size="small"
-                       @click="beforeCursor">
-                beforeCursor
+                       @click="getWordBeforeCursor">
+                getWordBeforeCursor
             </el-button>
             <el-button size="small"
                        type="primary"
@@ -50,11 +50,15 @@
                  class="ace_invisible ace_emptyMessage">
                 占位符
             </div>-->
+            triggerAutocomplete:{{triggerAutocomplete}}
         </div>
         <div class="content">
             <div class="editor-wrapper">
-                <div id="editor">select * from lyj_test_hive</div>
-                <ace-suggestions :suggestions="suggestions"
+                <div id="editor">
+                    select * from lyj_test_hive
+                </div>
+                <ace-suggestions ref="aceSuggestions"
+                                 :suggestions="suggestions"
                                  :filter="filter"
                                  :position="autoCompletePosition"
                                  :visible.sync="autoCompleteVisible"
@@ -136,12 +140,13 @@ export default {
             parseDetails: null,
             onSqlAnalysing: false,
             filter: '', // 需要匹配的关键词
-            autoCompleteVisible: true,
+            autoCompleteVisible: false,
             autoCompletePosition: {
                 pageX: 1200,
                 pageY: 0
             },
-            timestamp: 0
+            timestamp: 0,
+            triggerAutocomplete: true
         };
     },
     computed: {
@@ -152,11 +157,13 @@ export default {
     watch: {
         suggestions(val) {
             if (val.length === 0) {
-                console.log('关闭提示');
+                // console.log('关闭提示');
+                this.autoCompleteVisible = false;
+            } else {
+                // 更新提示框位置
+                this.autoCompletePositionUpdate();
+                this.autoCompleteVisible = true;
             }
-            // 更新提示框位置
-            this.autoCompletePositionUpdate();
-            this.autoCompleteVisible = true;
         }
     },
     mounted() {
@@ -190,17 +197,43 @@ export default {
             let singleLine = false;
             const bindPrefix = singleLine ? 'Enter|Shift-Enter|' : '';
             this.editor.commands.addCommand({
-                name: 'enter',
+                name: 'exec',
                 bindKey: { win: bindPrefix + 'Ctrl-Enter', mac: bindPrefix + 'Ctrl-Enter|Command-Enter' },
                 exec: (e) => {
-                    console.log('editor.commands.addCommand :', e);
+                    console.log('执行sql！');
+                }
+            });
+            // 选择和键入提示
+            this.editor.commands.addCommand({
+                name: 'up',
+                bindKey: { win: bindPrefix + 'Up', mac: bindPrefix + 'Up' },
+                exec: (editor) => {
+                    // console.log('监听到键盘事件 “上” ：', editor);
+                    this.$refs.aceSuggestions && this.$refs.aceSuggestions.selectUp();
+                },
+                isAvailable: (editor) => {
+                    return this.autoCompleteVisible;
                 }
             });
             this.editor.commands.addCommand({
                 name: 'down',
-                bindKey: { win: bindPrefix + 'Down', mac: bindPrefix + 'Down|Command-Down' },
+                bindKey: { win: bindPrefix + 'Down', mac: bindPrefix + 'Down' },
+                exec: (editor) => {
+                    // console.log('监听到键盘事件 “下” ：', editor);
+                    this.$refs.aceSuggestions && this.$refs.aceSuggestions.selectDown();
+                },
+                isAvailable: (editor) => {
+                    return this.autoCompleteVisible;
+                }
+            });
+            this.editor.commands.addCommand({
+                name: 'enter',
+                bindKey: { win: bindPrefix + 'Enter', mac: bindPrefix + 'Enter' },
                 exec: (e) => {
-                    console.log('监听到键盘事件 “下” ：', e);
+                    this.$refs.aceSuggestions && this.$refs.aceSuggestions.selectEnter();
+                },
+                isAvailable: (editor) => {
+                    return this.autoCompleteVisible;
                 }
             });
             // 自动补全
@@ -210,34 +243,49 @@ export default {
             editor.useHueAutocompleter = true;
             console.log(' editor.completer', editor.completer);*/
             // 执行后监听
+
+            // 提示指令
+            this.editor.commands.addCommand({
+                name: "autocomplete",
+                exec: (editor, options) => {
+                    this._analysis();
+                },
+                bindKey: "Ctrl-Space|Ctrl-Shift-Space|Alt-Space"
+            });
+
             this.editor.commands.on('afterExec', e => {
-                // console.log('执行后：', e);
-                // 光标移入括号内
-                if (e.command.name === 'insertstring') {
-                    let triggerAutocomplete = false;
-                    if (/\S+\(\)$/.test(e.args)) {
+                let { command, editor, args } = e;
+                // 插入
+                if (command.name === 'insertstring') {
+                    // 光标移入括号内
+                    if (/\S+\(\)$/.test(args)) {
                         editor.moveCursorTo(
                             editor.getCursorPosition().row,
                             editor.getCursorPosition().column - 1
                         );
-                        triggerAutocomplete = true;
                     }
-                    if (triggerAutocomplete) {
-                        window.setTimeout(() => {
-                            editor.execCommand('startAutocomplete');
-                        }, 1);
+                    if (this.triggerAutocomplete && /\S+/.test(args)) {
+                        this.$nextTick(() => {
+                            editor.execCommand('autocomplete');
+                        });
+                    } else {
+                        this.autoCompleteVisible = false;
                     }
+                    this.triggerAutocomplete = true;
+                }
+                if (command.name === 'backspace') {
+                    editor.execCommand('autocomplete');
                 }
             });
             // todo:执行时机有待商榷
-            this.editor.on('change', e => {
+            /*this.editor.on('change', e => {
                 console.log('Editor Change', e);
                 console.log(' this.editor', this.editor);
                 // todo: 脚本初始化之后需要执行一次分析，拿到初始的数据库列表
                 this.$nextTick(() => {
                     this._analysis();
                 });
-            });
+            });*/
 
             // 用来区分数据库类型
             let mark = 'hive-default';
@@ -400,13 +448,13 @@ export default {
             console.log('parseResult', parseResult);
             await this.editor.completer.update(parseResult);
             this.filter = this.getWordBeforeCursor();
-            console.log('this.filter', this.filter);
+            // console.log('this.filter', this.filter);
             let suggestions = this.editor.completer.filterSuggestions(this.filter);
             // 只需要最新的提示
             if (this.timestamp !== timestamp) {
                 return;
             }
-            console.log('Final suggestions -- ', suggestions);
+            // console.log('Final suggestions -- ', suggestions);
             this.suggestions = suggestions;
             this.onSqlAnalysing = false;
 
@@ -481,14 +529,24 @@ export default {
                 pageY: pageY + 20
             };
         },
-        handleAutocomplete(valueToInsert) {
-            // 先移除已匹配部分
-            let ranges = this.editor.selection.getAllRanges();
-            ranges.forEach(range => {
-                range.start.column -= this.filter.length;
-                this.editor.session.remove(range);
-            });
-            this.editor.execCommand('insertstring', valueToInsert);
+        /**
+         * 插入补全值
+         * */
+        handleAutocomplete(matchResult) {
+            let {
+                match,
+                value
+            } = matchResult;
+            if (match) {
+                // 先移除已匹配部分
+                let ranges = this.editor.selection.getAllRanges();
+                ranges.forEach(range => {
+                    range.start.column -= match.length;
+                    this.editor.session.remove(range);
+                });
+            }
+            this.triggerAutocomplete = /\.$/.test(value);
+            this.editor.execCommand('insertstring', value);
             this.editorFocus();
         },
         editorFocus() {
@@ -499,6 +557,9 @@ export default {
             let scroller = window.editor.renderer.scroller;
             scroller.appendChild(this.$refs.placeHolder);
         },
+        /**
+         * 本地数据库操作
+         * */
         createLocalforage(name = 'lucas_test_deb') {
             let ins = localForage.createInstance({ name });
             console.log('ins', ins);

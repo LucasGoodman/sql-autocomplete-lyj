@@ -30,7 +30,7 @@
                                 <div class="dot"
                                      :style="{background:suggestion.category.color}">
                                 </div>
-                                <span v-html="getMatchString(suggestion.value)"></span>
+                                <span v-html="getMatchString(getMatch(suggestion.value))"></span>
                             </div>
                             <div class="suggestion-meta">
                                 {{suggestion.meta}}
@@ -46,13 +46,7 @@
             </div>
             <div class="details-content">
                 <div class="details-content-inner">
-                    details-content
-                    <el-button size="small"
-                               @click="scroll">
-                        滚动测试
-                    </el-button>
-                    {{tabCategories}}
-                    <br />
+                    {{currentSuggestion}}
                 </div>
             </div>
         </div>
@@ -105,7 +99,7 @@ export default {
             }
         },
         wrapperStyle() {
-            console.log('this.position', this.position);
+            // console.log('this.position', this.position);
             return {
                 top: `${this.position.pageY}px`,
                 left: `${this.position.pageX}px`
@@ -132,10 +126,17 @@ export default {
                     return s.category === this.currentTabCategory;
                 });
             }
+        },
+        currentSuggestion() {
+            return this.currentSuggestions[this.activeIndex];
         }
     },
     watch: {
         activeIndex(val) {
+            let standard = this.checkActiveIndex();
+            if (!standard) {
+                return;
+            }
             let refString = this.getRefStringByIndex(val);
             if (!this.$refs[refString]) {
                 return;
@@ -144,7 +145,7 @@ export default {
             if (!el) {
                 return;
             }
-            el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: 'smooth' });
+            el.scrollIntoView({ block: "nearest", inline: "nearest" });
         },
         tabCategories(categories) {
             if (!categories.includes(this.currentTabCategory)) {
@@ -152,7 +153,12 @@ export default {
             }
         },
         currentTabCategory() {
-            this.checkActiveIndex();
+            this.checkActiveIndex(false);
+        },
+        localVisible(val) {
+            if (val) {
+                this.activeIndex = 0;
+            }
         }
     },
     // mounted() {},
@@ -161,14 +167,8 @@ export default {
     // beforeDestroy() {},
     // destroyed() {},
     methods: {
-        keyDowHandler(e) {
-            console.log('e', e);
-        },
         getRefStringByIndex(i) {
             return `suggestion${i}`;
-        },
-        scroll() {
-            this.activeIndex++;
         },
         /**
          * 正则变量中的特殊字符转义
@@ -178,28 +178,81 @@ export default {
             return (str + '')
                 .replace(new RegExp('[.\\\\+*?\\[\\^\\]$(){}=!<>|:\\' + (delimiter || '') + '-]', 'g'), '\\$&');
         },
-        getMatchString(value) {
+        getMatch(value) {
             let reg = new RegExp(this.preg_quote(this.filter), 'i');
             let matchResult = reg.exec(value);
             if (matchResult) {
-                let originMatch = matchResult[0]; // 只匹配第一个
+                let match = matchResult[0]; // 只匹配第一个
                 let matchIndex = matchResult.index;
-                let bolderMatch = `<b>${originMatch}</b>`;
+                // let bolderMatch = `<b>${match}</b>`;
                 let beforeMatch = value.slice(0, matchIndex);
-                let afterMatch = value.substring(matchIndex + originMatch.length);
-                return beforeMatch + bolderMatch + afterMatch;
+                let afterMatch = value.substring(matchIndex + match.length);
+                return {
+                    match,
+                    beforeMatch,
+                    afterMatch,
+                    value
+                };
+            } else {
+                return {
+                    value
+                };
+            }
+        },
+        getMatchString(matchResult) {
+            let {
+                match,
+                beforeMatch,
+                afterMatch,
+                value
+            } = matchResult;
+            if (match) {
+                return `${beforeMatch}<b>${match}</b>${afterMatch}`;
             } else {
                 return value;
             }
         },
-        autocomplete(value) {
-            this.$emit('autocomplete', value);
-            this.localVisible = false;
-        },
-        checkActiveIndex() {
-            if (this.activeIndex > this.currentSuggestions.length) {
-                this.activeIndex = this.currentSuggestions.length - 1;
+        /**
+         * 检查高亮index是否合格
+         * @param excessLengthResetToZero 超出长度是否归零
+         * */
+        checkActiveIndex(excessLengthResetToZero = true) {
+            if (this.activeIndex > this.currentSuggestions.length - 1) {
+                // console.log(this.activeIndex);
+                // console.log(this.currentSuggestions.length - 1);
+                this.activeIndex = excessLengthResetToZero ? 0 : this.currentSuggestions.length - 1;
+                return false;
             }
+            if (this.activeIndex < 0) {
+                this.activeIndex = this.currentSuggestions.length - 1;
+                return false;
+            }
+            return true;
+        },
+        /**
+         * 上选
+         * */
+        selectUp() {
+            // console.log('上选');
+            this.activeIndex--;
+        },
+        /**
+         * 下选
+         * */
+        selectDown() {
+            // console.log('下选');
+            this.activeIndex++;
+        },
+        /**
+         * 键入选择
+         * */
+        selectEnter() {
+            this.autocomplete(this.currentSuggestions[this.activeIndex].value);
+            // console.log('键入选择');
+        },
+        autocomplete(value) {
+            this.$emit('autocomplete', this.getMatch(value));
+            this.localVisible = false;
         }
     }
 };
@@ -295,6 +348,7 @@ export default {
 
             b {
                 font-weight: bolder;
+                color: rbg(66, 66, 66);
             }
 
             .dot {

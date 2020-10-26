@@ -42,11 +42,11 @@ module.exports = {
     },
     productionSourceMap: false,
     devServer: {
-        port: 8091,
+        port: 8092,
         open: true,
         proxy: {
             '/api-local': {
-                target: 'http://10.76.37.4',
+                target: 'http://data-assets-process-api.dev.segma.tech/',
                 progress: false,
                 pathRewrite: {
                     '^/api-local': '/'
