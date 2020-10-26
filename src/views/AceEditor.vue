@@ -153,7 +153,7 @@ export default {
     },
     computed: {
         _analysis() {
-            return _debounce(this.analysis, 200);
+            return _debounce(this.analysis, 300);
         }
     },
     watch: {
@@ -288,10 +288,9 @@ export default {
                     this.triggerAutocomplete = true;
                 }
                 if (command.name === 'backspace') {
-                    editor.execCommand('autocomplete');
+                    this.filterSuggestions();
                 }
             });
-            // todo:执行时机有待商榷
             /*this.editor.on('change', e => {
                 console.log('Editor Change', e);
                 console.log(' this.editor', this.editor);
@@ -466,17 +465,12 @@ export default {
                 this.editor.clearWarnings();*/
                 this.removeMarkers();
                 await this.editor.completer.update(parseResult);
-                this.filter = this.getWordBeforeCursor();
-                // console.log('this.filter', this.filter);
-                let suggestions = this.editor.completer.filterSuggestions(this.filter);
                 // 只需要最新的提示
                 if (this.timestamp !== timestamp) {
                     return;
                 }
-                // console.log('Final suggestions -- ', suggestions);
-                this.suggestions = suggestions;
+                this.filterSuggestions();
             } else {
-                console.log('errors', errors);
                 this.autoCompleteVisible = false;
                 errors.forEach(error => {
                     let {
@@ -549,6 +543,13 @@ export default {
             }
             if (subject.loading()) {
             }*/
+        },
+        /**
+         * 筛选结果，但是不重新解析sql
+         * */
+        filterSuggestions() {
+            this.filter = this.getWordBeforeCursor();
+            this.suggestions = this.editor.completer.filterSuggestions(this.filter);
         },
         removeMarkers() {
             let markers = this.editor.session.getMarkers();
@@ -642,7 +643,6 @@ export default {
 #editor {
     width: 100%;
     height: 500px;
-    background: rgba(0, 0, 0, 0.01);
 }
 
 .layout-default, .ace-edtior {

@@ -100,8 +100,8 @@ class SegmaAutoComplete {
         if (suggestKeywords) {
             this.keywordsHandler(suggestKeywords);
         }
-        if (suggestAggregateFunctions) {
-            this.aggregateFunctionsHandler(suggestAggregateFunctions);
+        if (suggestAggregateFunctions || suggestFunctions) {
+            this.aggregateFunctionsHandler();
         }
         return [];
     }
@@ -219,8 +219,7 @@ class SegmaAutoComplete {
         return suggestions;
     }
 
-    aggregateFunctionsHandler(suggestAggregateFunctions) {
-        console.log('suggestAggregateFunctions', suggestAggregateFunctions);
+    aggregateFunctionsHandler() {
         let suggestions = this.getAndCacheUDFCategory();
         this.addSuggestions(suggestions);
     }
