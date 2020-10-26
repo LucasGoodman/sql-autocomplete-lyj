@@ -188,7 +188,8 @@ export default {
                 enableLiveAutocompletion: true,
                 enableBasicAutocompletion: true,
                 autoScrollEditorIntoView: true,
-                highlightActiveLine: false
+                highlightActiveLine: false,
+                theme: 'ace/theme/tomorrow'
                 // printMargin: false,
                 // showGutter: false
                 // maxLines: 1 // make it 1 line
