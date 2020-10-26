@@ -55,7 +55,8 @@
         <div class="content">
             <div class="editor-wrapper">
                 <div id="editor">
-                    select * from lyj_test_hive
+                    <!--                    select * from lyj_test_hive-->
+                    SELECT * FROa a123
                 </div>
                 <ace-suggestions ref="aceSuggestions"
                                  :suggestions="suggestions"
@@ -120,6 +121,7 @@ const AVAILABLE_AUTOCOMPLETERS = {
 };
 
 // const snippetManager = ace.require("ace/snippets").snippetManager;
+const Range = ace.require("ace/range").Range;
 // import $ from 'jquery';
 import LOTS_OF_PARSE_RESULTS from 'sql/test/lotsOfParseResults';
 import _debounce from 'lodash/debounce';
@@ -231,6 +233,17 @@ export default {
                 bindKey: { win: bindPrefix + 'Enter', mac: bindPrefix + 'Enter' },
                 exec: (e) => {
                     this.$refs.aceSuggestions && this.$refs.aceSuggestions.selectEnter();
+                },
+                isAvailable: (editor) => {
+                    return this.autoCompleteVisible;
+                }
+            });
+            // 关闭补全
+            this.editor.commands.addCommand({
+                name: 'close',
+                bindKey: { win: bindPrefix + 'esc', mac: bindPrefix + 'esc' },
+                exec: (e) => {
+                    this.autoCompleteVisible = false;
                 },
                 isAvailable: (editor) => {
                     return this.autoCompleteVisible;
@@ -446,18 +459,40 @@ export default {
             this.onSqlAnalysing = true;
             let parseResult = await this.sqlAnalysis();
             console.log('parseResult', parseResult);
-            await this.editor.completer.update(parseResult);
-            this.filter = this.getWordBeforeCursor();
-            // console.log('this.filter', this.filter);
-            let suggestions = this.editor.completer.filterSuggestions(this.filter);
-            // 只需要最新的提示
-            if (this.timestamp !== timestamp) {
-                return;
-            }
-            // console.log('Final suggestions -- ', suggestions);
-            this.suggestions = suggestions;
-            this.onSqlAnalysing = false;
+            let { errors } = parseResult;
+            if (!errors) {
+                /*this.editor.clearErrors();
+                this.editor.clearWarnings();*/
+                this.removeMarkers();
+                await this.editor.completer.update(parseResult);
+                this.filter = this.getWordBeforeCursor();
+                // console.log('this.filter', this.filter);
+                let suggestions = this.editor.completer.filterSuggestions(this.filter);
+                // 只需要最新的提示
+                if (this.timestamp !== timestamp) {
+                    return;
+                }
+                // console.log('Final suggestions -- ', suggestions);
+                this.suggestions = suggestions;
+            } else {
+                console.log('errors', errors);
+                this.autoCompleteVisible = false;
+                errors.forEach(error => {
+                    let {
+                        first_column,
+                        first_line,
+                        last_column,
+                        last_line
+                    } = error.loc;
+                    let range = new Range(first_line - 1, first_column, last_line - 1, last_column);
+                    this.editor.session.addMarker(range, "syntax-error", "text");
 
+                    // 行上标记错误
+                    /*let { text, line } = error;
+                    this.editor.addError(text, line);*/
+                });
+            }
+            this.onSqlAnalysing = false;
 
             /*const subject = new AutocompleteResults({
                 fixedPrefix: '',
@@ -514,6 +549,17 @@ export default {
             if (subject.loading()) {
             }*/
         },
+        removeMarkers() {
+            let markers = this.editor.session.getMarkers();
+            if (markers) {
+                for (let key in markers) {
+                    if (markers.hasOwnProperty(key)) {
+                        this.editor.session.removeMarker(key);
+                    }
+                }
+            }
+        },
+
         /**
          * 获取光标前的单词
          * */
@@ -626,5 +672,11 @@ export default {
 
 .parse-details {
     overflow: auto;
+}
+
+.syntax-error {
+    position: absolute;
+    border-bottom: 1px dotted #d9150c;
+    border-radius: 0 !important;
 }
 </style>
