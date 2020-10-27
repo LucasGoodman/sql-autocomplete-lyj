@@ -50,12 +50,11 @@
                  class="ace_invisible ace_emptyMessage">
                 占位符
             </div>-->
-            triggerAutocomplete:{{triggerAutocomplete}}
         </div>
         <div class="content">
             <div class="editor-wrapper">
                 <div id="editor">
-                    select * from lyj_test_hive
+                    <!--                    select * from lyj_test_hive-->
                     <!--                    SELECT * FROa a123-->
                 </div>
                 <ace-suggestions ref="aceSuggestions"
@@ -67,7 +66,7 @@
                                  @autocomplete="handleAutocomplete"
                                  @focus="editorFocus"></ace-suggestions>
             </div>
-            <div class="parse-result-list">
+            <!--<div class="parse-result-list">
                 <h1>
                     parse-result-list
                 </h1>
@@ -83,7 +82,7 @@
                     parse-details
                 </h1>
                 <pre style="font-family: 'Microsoft YaHei';">{{parseDetails}}</pre>
-            </div>
+            </div>-->
         </div>
     </div>
 </template>
@@ -195,7 +194,7 @@ export default {
                 // showGutter: false
                 // maxLines: 1 // make it 1 line
             });
-            this.editor.setFontSize("18px");
+            // this.editor.setFontSize("18px");
 
             // 执行监听
             let singleLine = false;

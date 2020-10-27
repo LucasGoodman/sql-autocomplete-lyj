@@ -52,6 +52,9 @@
             </div>
             <div class="details-content">
                 <div class="details-content-inner">
+                    <template v-if="currentSuggestion.category.id === 'database'">
+                        无描述
+                    </template>
                     <template v-if="currentSuggestion.category.id === 'table'">
                         {{currentTableComment}}
                     </template>
