@@ -40,13 +40,27 @@
                 </div>
             </div>
         </div>
-        <div class="auto-completer-details">
+        <div v-if="!['keyword'].includes(currentSuggestion.category.id)"
+             class="auto-completer-details">
             <div class="suggestions-header">
-                details-header
+                <template v-if="currentSuggestion.category.id === 'table'">
+                    {{getTableChainString(currentSuggestion)}}
+                </template>
+                <template v-if="['database','column','udf'].includes(currentSuggestion.category.id)">
+                    {{currentSuggestion.originalValue}}
+                </template>
             </div>
             <div class="details-content">
                 <div class="details-content-inner">
-                    {{currentSuggestion}}
+                    <template v-if="currentSuggestion.category.id === 'table'">
+                        {{currentTableComment}}
+                    </template>
+                    <template v-if="currentSuggestion.category.id === 'column'">
+                        {{currentSuggestion.details || '无描述'}}
+                    </template>
+                    <template v-if="currentSuggestion.category.id === 'udf'">
+                        {{currentSuggestion.details.description}}
+                    </template>
                 </div>
             </div>
         </div>
@@ -86,7 +100,8 @@ export default {
     data() {
         return {
             activeIndex: 0,
-            currentTabCategory: null
+            currentTabCategory: null,
+            currentTableComment: ''
         };
     },
     computed: {
@@ -128,7 +143,10 @@ export default {
             }
         },
         currentSuggestion() {
-            return this.currentSuggestions[this.activeIndex];
+            return this.currentSuggestions[this.activeIndex] || {
+                category: { id: '' },
+                details: { description: '' }
+            };
         }
     },
     watch: {
@@ -146,6 +164,11 @@ export default {
                 return;
             }
             el.scrollIntoView({ block: "nearest", inline: "nearest" });
+        },
+        currentSuggestion(val) {
+            if (val && val.category.id === 'table') {
+                this.getTableComment(val);
+            }
         },
         tabCategories(categories) {
             if (!categories.includes(this.currentTabCategory)) {
@@ -253,6 +276,18 @@ export default {
         autocomplete(value) {
             this.$emit('autocomplete', this.getMatch(value));
             this.localVisible = false;
+        },
+        getTableChainString(currentSuggestion) {
+            let { chain, value } = currentSuggestion;
+            chain.forEach(c => value = `${c}.${value}`);
+            return value;
+        },
+        async getTableComment(currentSuggestion) {
+            let { chain, value } = currentSuggestion;
+            let res = await new Promise((resolve, reject) => {
+                this.$emit('getTableComment', chain[0], value, resolve);
+            });
+            this.currentTableComment = res || '无描述';
         }
     }
 };
@@ -291,6 +326,7 @@ export default {
         line-height: 20px;
         white-space: nowrap;
         text-overflow: ellipsis;
+        color: rgb(66, 66, 66);
         background-color: #f8f8f8;
         flex: 0 0 20px;
     }
@@ -316,6 +352,7 @@ export default {
         .suggestions-content {
             overflow: auto;
             max-height: 225px;
+            .scroll-bar();
         }
 
         .suggestion {

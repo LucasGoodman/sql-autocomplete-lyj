@@ -66,14 +66,42 @@ class DatabaseManager {
             }
         }
         return list;
+    };
+
+    async getDatabaseNameByTableName(tbName) {
+        let self = this;
+        if (!self.databaseTree) {
+            return;
+        }
+        let target;
+        Object.keys(self.databaseTree).forEach(key => {
+            if (self.databaseTree[key]['tables'] && self.databaseTree[key]['tables'].hasOwnProperty(tbName)) {
+                target = self.databaseTree[key].databaseName;
+            }
+        });
+        return target;
     }
 
     async getColumns(identifierChain) {
         let self = this;
         let list = [];
         // todo：这里可能只有一个表标识，需要去找到对应的表
-        let dbName = identifierChain[0].name;
-        let tbName = identifierChain[1].name;
+
+        let dbName, tbName;
+        // 只有表标识
+        if (identifierChain.length === 1) {
+            tbName = identifierChain[0].name;
+            dbName = await self.getDatabaseNameByTableName(tbName);
+            console.log('dbName', dbName);
+            if (!dbName) {
+                console.log(`未找到tableName为${tbName}的数据库，当前databaseTree为${self.databaseTree}`);
+                return list;
+            }
+        } else if (identifierChain.length === 2) {
+            dbName = identifierChain[0].name;
+            tbName = identifierChain[1].name;
+        }
+
         if (!self.databaseTree[dbName] || !self.databaseTree[dbName]['tables'][tbName] || !self.databaseTree[dbName]['tables'][tbName]['columns']) {
             await self.fetchAndCacheTableInfo(dbName, tbName);
         }
@@ -162,6 +190,17 @@ class DatabaseManager {
             isView
         };
     };
+
+    /**
+     * 获取表描述
+     * */
+    async fetchTableComment(dbName, tbName) {
+        let self = this;
+        if (typeof self.databaseTree[dbName]['tables'][tbName].comment === 'undefined') {
+            await self.fetchAndCacheTableInfo(dbName, tbName);
+        }
+        return self.databaseTree[dbName]['tables'][tbName].comment;
+    }
 }
 
 export default DatabaseManager;

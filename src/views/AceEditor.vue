@@ -55,14 +55,15 @@
         <div class="content">
             <div class="editor-wrapper">
                 <div id="editor">
-                    <!--                    select * from lyj_test_hive-->
-                    SELECT * FROa a123
+                    select * from lyj_test_hive
+                    <!--                    SELECT * FROa a123-->
                 </div>
                 <ace-suggestions ref="aceSuggestions"
                                  :suggestions="suggestions"
                                  :filter="filter"
                                  :position="autoCompletePosition"
                                  :visible.sync="autoCompleteVisible"
+                                 @getTableComment="handleDetTableComment"
                                  @autocomplete="handleAutocomplete"
                                  @focus="editorFocus"></ace-suggestions>
             </div>
@@ -596,6 +597,12 @@ export default {
             this.triggerAutocomplete = /\.$/.test(value);
             this.editor.execCommand('insertstring', value);
             this.editorFocus();
+        },
+        /**
+         * 获取表描述
+         * */
+        async handleDetTableComment(dbName, tbName, resolve) {
+            resolve(await this.editor.completer.databaseManager.fetchTableComment(dbName, tbName));
         },
         editorFocus() {
             this.editor.focus();

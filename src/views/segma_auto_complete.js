@@ -117,9 +117,9 @@ class SegmaAutoComplete {
         let database = await this.databaseManager.getDatabases();
 
         let suggestions = database.map(dbName => {
-            dbName = self.addPrefixAndSuffix(dbName, appendDot, prependFrom);
             return {
-                value: dbName,
+                originalValue: dbName,
+                value: self.addPrefixAndSuffix(dbName, appendDot, prependFrom),
                 meta: CATEGORIES.DATABASE.label,
                 category: CATEGORIES.DATABASE,
                 weightAdjust: 0,
@@ -136,9 +136,9 @@ class SegmaAutoComplete {
         let tables = await this.databaseManager.getTables(identifierChain);
         let suggestions = tables.map(table => {
             let { name, chain } = table;
-            name = self.addPrefixAndSuffix(name, false, prependFrom);
             return {
-                value: name,
+                originalValue: name,
+                value: self.addPrefixAndSuffix(name, false, prependFrom),
                 meta: CATEGORIES.TABLE.label,
                 category: CATEGORIES.TABLE,
                 weightAdjust: 0,
@@ -160,6 +160,7 @@ class SegmaAutoComplete {
         suggestions = suggestions.map(column => {
             let { name, chain } = column;
             return {
+                originalValue: name,
                 value: name,
                 meta: CATEGORIES.COLUMN.label,
                 category: CATEGORIES.COLUMN,
@@ -175,6 +176,7 @@ class SegmaAutoComplete {
     keywordsHandler(keywords) {
         this.addSuggestions(keywords.map(keyword => {
             return {
+                originalValue: keyword.value,
                 value: keyword.value,
                 meta: CATEGORIES.KEYWORD.label,
                 category: CATEGORIES.KEYWORD,
@@ -200,6 +202,7 @@ class SegmaAutoComplete {
                     let { description, draggable, name, signature, returnTypes } = fun;
                     suggestions = [
                         ...suggestions, {
+                            originalValue: name,
                             value: name + '()',
                             meta: returnTypes[0],
                             category: CATEGORIES.UDF,
